@@ -2,7 +2,8 @@
 
 Edge device code for the [HavenCore Project](https://github.com/ThatMattCat/havencore)
 
-Selene is the wake word (still needs Porcupine API Key/Account)
+'Hey Selene' is the wake trigger (still needs Porcupine API Key/Account)
+
 Tested with Python 3.10.12 on Raspberry Pi 3 using ReSpeaker Mic Array and generic speaker connected straight to Pi
 
 
