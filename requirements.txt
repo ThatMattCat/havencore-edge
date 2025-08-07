@@ -1,0 +1,12 @@
+click
+pvporcupine
+pycairo
+pyusb
+voice-engine
+fastapi
+uvicorn
+pydantic
+websockets
+pyaudio
+numpy
+requests
