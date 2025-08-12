@@ -1,5 +1,7 @@
 # HavenCore Edge Device
 
+### This is being deprecated for [ESP32-Box-3](https://github.com/espressif/esp-box)
+---
 Edge device code for the [HavenCore Project](https://github.com/ThatMattCat/havencore)
 
 'Hey Selene' is the wake trigger (still needs Porcupine API Key/Account)
