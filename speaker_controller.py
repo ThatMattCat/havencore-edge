@@ -17,14 +17,24 @@ logger = config.get_logger('rpi')
 Gst.init(None)
 
 class SpeakerController:
+    """Controller for audio playback using GStreamer.
+    
+    Handles playing audio from URLs through the system's audio output.
+    """
     def __init__(self):
         self.is_playing = False
         self.playlist = []
         self.ws = None
 
     @with_trace
-    async def play_audio(self, audio_url:str = None, trace_id:str = None):
-        if not trace_id:
+    async def play_audio(self, audio_url: str = None, trace_id: str = None):
+        """Play audio from a URL using GStreamer.
+        
+        Args:
+            audio_url: URL of the audio to play
+            trace_id: Optional trace ID for request tracing
+        """
+        if trace_id:
             set_trace_id(trace_id)
         pipeline_str = f"playbin uri={audio_url} audio-sink=\"autoaudiosink\""
         logger.debug(f"pipeline_str: {pipeline_str}")

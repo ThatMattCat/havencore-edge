@@ -3,6 +3,11 @@ import usb.util
 
 
 class PixelRing:
+    """Controller for ReSpeaker LED ring interface.
+    
+    Provides methods to control the LED ring patterns for visual feedback
+    during voice interaction states (listening, speaking, thinking, etc).
+    """
     TIMEOUT = 8000
 
     def __init__(self, dev = None):
