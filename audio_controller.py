@@ -33,6 +33,11 @@ class WSMessages(Enum):
 
 # TODO: Split out mic-related code into separate microphone controller class
 class AudioController:
+    """Main controller for audio processing and voice interaction.
+    
+    Handles wake word detection, audio streaming to STT service,
+    silence detection, and coordination with speaker and LED ring.
+    """
     def __init__(self):
         self.speaker = SpeakerController()
         self.respeaker = self.initialize_respeaker() # also sets self.pixel_ring
@@ -92,27 +97,40 @@ class AudioController:
             except queue.Empty:
                 await asyncio.sleep(AUDIO_QUEUE_SLEEP_INTERVAL)  # Short sleep to prevent busy-waiting
 
+    async def _detect_wake_word(self, channel_0: np.ndarray) -> bool:
+        """Process audio for wake word detection.
+        
+        Args:
+            channel_0: Audio data from channel 0
+            
+        Returns:
+            True if wake word was detected, False otherwise
+        """
+        for i in range(0, len(channel_0), self.porcupine_frame_length):
+            porcupine_chunk = channel_0[i:i + self.porcupine_frame_length]
+            
+            if len(porcupine_chunk) == self.porcupine_frame_length:
+                result = self.porcupine.process(porcupine_chunk)
+                if result >= 0:
+                    trace_id = set_trace_id()
+                    logger.info("Wake word detected!", extra={"trace_id": trace_id})
+                    self.pixel_ring.listen()
+                    await self.send_message(message_type=WSMessages.CONTROL_TYPE.value, message=WSMessages.START_MSG.value)
+                    self.start_silence_detection()
+                    self.is_streaming = True
+                    return True
+        return False
+
     @with_trace
-    async def process_audio(self, in_data):
+    async def process_audio(self, in_data) -> None:
+        """Process incoming audio data for wake word detection or streaming."""
         audio_array = np.frombuffer(in_data, dtype=np.int16).reshape(-1, 6)
         channel_0 = audio_array[:, 0]
+        
         if not self.is_streaming:
-            for i in range(0, len(channel_0), self.porcupine_frame_length):
-                porcupine_chunk = channel_0[i:i + self.porcupine_frame_length]
-                
-                if len(porcupine_chunk) == self.porcupine_frame_length:
-                    result = self.porcupine.process(porcupine_chunk)
-                    if result >= 0:
-                        trace_id = set_trace_id()
-                        logger.info("Wake word detected!", extra={"trace_id": trace_id})
-                        self.pixel_ring.listen()
-                        await self.send_message(message_type=WSMessages.CONTROL_TYPE.value, message=WSMessages.START_MSG.value)
-                        self.start_silence_detection()
-                        self.is_streaming = True
-                        break
+            await self._detect_wake_word(channel_0)
         else:
-            if self.is_streaming:
-                await self.stream_audio_chunk(channel_0.tobytes())
+            await self.stream_audio_chunk(channel_0.tobytes())
 
 
     async def connect_websocket(self):
@@ -223,14 +241,39 @@ class AudioController:
 
         finally:
             logger.info("Cleaning up resources...")
-            await self.speaker.stop()
+            try:
+                await self.speaker.stop()
+            except Exception as e:
+                logger.error(f"Error stopping speaker: {e}")
+                
             if self.silence_task:
                 self.silence_task.cancel()
-            self.stream.stop_stream()
-            self.stream.close()
-            self.audio.terminate()
-            await self.ws.close()
-            self.respeaker.close()
+                
+            if self.stream:
+                try:
+                    self.stream.stop_stream()
+                    self.stream.close()
+                except Exception as e:
+                    logger.error(f"Error closing audio stream: {e}")
+                    
+            if self.audio:
+                try:
+                    self.audio.terminate()
+                except Exception as e:
+                    logger.error(f"Error terminating audio: {e}")
+                    
+            if self.ws:
+                try:
+                    await self.ws.close()
+                except Exception as e:
+                    logger.error(f"Error closing WebSocket: {e}")
+                    
+            if self.respeaker:
+                try:
+                    self.respeaker.close()
+                except Exception as e:
+                    logger.error(f"Error closing respeaker: {e}")
+                    
             self.executor.shutdown(wait=False)
 
 async def main():

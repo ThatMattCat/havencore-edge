@@ -17,6 +17,10 @@ logger = config.get_logger('rpi')
 Gst.init(None)
 
 class SpeakerController:
+    """Controller for audio playback using GStreamer.
+    
+    Handles playing audio from URLs through the system's audio output.
+    """
     def __init__(self):
         self.is_playing = False
         self.playlist = []
